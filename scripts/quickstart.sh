@@ -13,43 +13,33 @@
 # O script usa sudo apenas nos comandos docker quando necessário.
 # ==============================================================================
 
-set -euo pipefail
-
-# Trap global para imprimir linha exata de qualquer erro
-trap 'echo -e "\n\033[0;31m[ERRO na linha $LINENO]\033[0m Comando falhou: $BASH_COMMAND" >&2' ERR
-
+# Bloco root roda ANTES do set -e para evitar aborto prematuro
 # ──────────────────────────────────────────────────────────────────────────────
-# GUARDA-CHUVA: se executado como root (sudo curl|bash ou sudo bash),
-# baixa o script para um arquivo temporário e reexecuta como usuário real.
-#
-# Problema: curl|bash faz o bash ler de stdin — $0 vira "/dev/stdin" e não
-# pode ser copiado/reexecutado. A solução é baixar novamente via curl.
+# GUARDA-CHUVA: se chamado como root (sudo curl|bash ou sudo bash),
+# baixa o script para /tmp e reexecuta como o usuário real.
 # ──────────────────────────────────────────────────────────────────────────────
-_SCRIPT_URL="https://raw.githubusercontent.com/crishpg/Demo-notion-ia-usando-antropic/main/scripts/quickstart.sh"
-
-if [[ "$EUID" -eq 0 ]]; then
-  REAL_USER="${SUDO_USER:-}"
-  if [[ -z "$REAL_USER" ]]; then
-    REAL_USER=$(getent passwd | awk -F: '$3>=1000 && $7!~/nologin|false/{print $1; exit}')
+if [[ "${EUID:-$(id -u)}" -eq 0 ]]; then
+  _SCRIPT_URL="https://raw.githubusercontent.com/crishpg/Demo-notion-ia-usando-antropic/main/scripts/quickstart.sh"
+  # Descobre o usuário real
+  _REAL="${SUDO_USER:-}"
+  if [[ -z "$_REAL" ]]; then
+    _REAL=$(id -nu 1000 2>/dev/null || \
+            getent passwd | awk -F: '$3==1000{print $1;exit}' || \
+            echo "")
   fi
-
-  if [[ -n "$REAL_USER" ]]; then
-    TMPSCRIPT=$(mktemp /tmp/quickstart-XXXXXX.sh)
-    # Usa o arquivo em disco se disponível; caso contrário baixa do GitHub
-    if [[ -f "$0" && "$0" != "/dev/stdin" && "$0" != "bash" ]]; then
-      cp "$0" "$TMPSCRIPT"
-    else
-      echo "[WARN]  Baixando script para arquivo temporário..."
-      curl -fsSL "${_SCRIPT_URL}?t=$(date +%s)" -o "$TMPSCRIPT" || \
-        { echo "[ERROR] Falha ao baixar o script. Verifique a conexão."; exit 1; }
-    fi
-    chmod +x "$TMPSCRIPT"
-    chown "$REAL_USER" "$TMPSCRIPT"
-    echo "[WARN]  Executado como root. Reexecutando como '${REAL_USER}'..."
-    exec sudo -u "$REAL_USER" bash "$TMPSCRIPT" "$@"
+  if [[ -n "$_REAL" ]]; then
+    _TMP=$(mktemp /tmp/qs-XXXXXX.sh)
+    echo "[WARN]  Root detectado — baixando script e reexecutando como '${_REAL}'..."
+    curl -fsSL "${_SCRIPT_URL}?t=$(date +%s)" -o "$_TMP"
+    chmod +x "$_TMP"
+    chown "$_REAL" "$_TMP"
+    exec sudo -u "$_REAL" bash "$_TMP"
   fi
-  echo "[WARN]  Continuando como root (usuário real não identificado)."
+  echo "[WARN]  Usuário real não encontrado — continuando como root."
 fi
+
+set -euo pipefail
+trap 'echo -e "\n\033[0;31m[ERRO na linha $LINENO]\033[0m Falhou: $BASH_COMMAND" >&2' ERR
 
 # ──────────────────────────────────────────────────────────────────────────────
 # Cores e helpers
