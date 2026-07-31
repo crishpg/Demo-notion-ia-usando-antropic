@@ -15,6 +15,9 @@
 
 set -euo pipefail
 
+# Trap global para imprimir linha exata de qualquer erro
+trap 'echo -e "\n\033[0;31m[ERRO na linha $LINENO]\033[0m Comando falhou: $BASH_COMMAND" >&2' ERR
+
 # ──────────────────────────────────────────────────────────────────────────────
 # GUARDA-CHUVA: se executado como root (sudo curl|bash ou sudo bash),
 # baixa o script para um arquivo temporário e reexecuta como usuário real.
