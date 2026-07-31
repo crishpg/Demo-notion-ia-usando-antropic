@@ -1,0 +1,185 @@
+name: CI/CD — Sistema Freelancers
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+    branches: [main, master]
+  workflow_dispatch:         # permite execução manual pelo GitHub
+
+# ==============================================================================
+# Variáveis de ambiente globais do workflow
+# ==============================================================================
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
+
+# ==============================================================================
+# Jobs
+# ==============================================================================
+jobs:
+
+  # ============================================================================
+  # JOB 1 — Lint e Type-check
+  # ============================================================================
+  lint:
+    name: "Lint & Type-check"
+    runs-on: ubuntu-22.04
+
+    steps:
+      - name: Checkout do código
+        uses: actions/checkout@v4
+
+      - name: Configurar Node.js 18
+        uses: actions/setup-node@v4
+        with:
+          node-version: "18"
+          cache: "npm"
+
+      - name: Instalar dependências
+        run: npm ci
+
+      - name: Executar lint
+        run: npm run lint
+
+      - name: Verificar tipos TypeScript
+        run: npx tsc --noEmit
+
+  # ============================================================================
+  # JOB 2 — Build Docker
+  # ============================================================================
+  build:
+    name: "Build Docker Image"
+    runs-on: ubuntu-22.04
+    needs: lint
+    permissions:
+      contents: read
+      packages: write
+
+    outputs:
+      image_tag: ${{ steps.meta.outputs.tags }}
+      image_digest: ${{ steps.build-push.outputs.digest }}
+
+    steps:
+      - name: Checkout do código
+        uses: actions/checkout@v4
+
+      - name: Configurar QEMU (multi-arch)
+        uses: docker/setup-qemu-action@v3
+
+      - name: Configurar Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login no GitHub Container Registry
+        if: github.event_name != 'pull_request'
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extrair metadados (tags e labels)
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          tags: |
+            type=ref,event=branch
+            type=ref,event=pr
+            type=semver,pattern={{version}}
+            type=sha,prefix=sha-
+            type=raw,value=latest,enable={{is_default_branch}}
+
+      - name: Build e Push da imagem
+        id: build-push
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          file: ./Dockerfile
+          push: ${{ github.event_name != 'pull_request' }}
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+          platforms: linux/amd64
+
+  # ============================================================================
+  # JOB 3 — Deploy para Produção (apenas na branch main/master)
+  # ============================================================================
+  deploy:
+    name: "Deploy para Produção"
+    runs-on: ubuntu-22.04
+    needs: build
+    if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master')
+
+    # Requer ambiente "production" configurado no GitHub com os secrets:
+    # SSH_HOST, SSH_USER, SSH_PRIVATE_KEY, SSH_PORT (opcional)
+    environment:
+      name: production
+      url: http://${{ secrets.SSH_HOST }}:3000
+
+    steps:
+      - name: Checkout do código
+        uses: actions/checkout@v4
+
+      - name: Configurar chave SSH
+        uses: webfactory/ssh-agent@v0.9.0
+        with:
+          ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
+
+      - name: Adicionar servidor ao known_hosts
+        run: |
+          mkdir -p ~/.ssh
+          ssh-keyscan -H ${{ secrets.SSH_HOST }} >> ~/.ssh/known_hosts
+
+      - name: Sincronizar arquivos do projeto via rsync
+        run: |
+          rsync -az --delete \
+            --exclude='.git' \
+            --exclude='node_modules' \
+            --exclude='.next' \
+            --exclude='backups' \
+            -e "ssh -p ${{ secrets.SSH_PORT || 22 }}" \
+            ./ ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}:/opt/freelancers-app/
+
+      - name: Executar deploy remoto
+        run: |
+          ssh -p ${{ secrets.SSH_PORT || 22 }} \
+            ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} \
+            "cd /opt/freelancers-app && \
+             export BRANCH=${{ github.ref_name }} && \
+             bash scripts/deploy.sh --branch ${{ github.ref_name }}"
+
+      - name: Verificar saúde pós-deploy
+        run: |
+          sleep 10
+          HTTP_STATUS=$(curl -o /dev/null -s -w "%{http_code}" \
+            "http://${{ secrets.SSH_HOST }}:3000/" || echo "000")
+          if [[ "$HTTP_STATUS" == "200" || "$HTTP_STATUS" == "304" ]]; then
+            echo "✅ Deploy bem-sucedido! HTTP $HTTP_STATUS"
+          else
+            echo "❌ Aplicação não respondeu (HTTP $HTTP_STATUS)"
+            exit 1
+          fi
+
+  # ============================================================================
+  # JOB 4 — Notificação de resultado (opcional)
+  # ============================================================================
+  notify:
+    name: "Notificação"
+    runs-on: ubuntu-22.04
+    needs: [lint, build, deploy]
+    if: always()
+
+    steps:
+      - name: Resumo do workflow
+        run: |
+          echo "## Resultado do Deploy" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "| Etapa   | Status |" >> $GITHUB_STEP_SUMMARY
+          echo "|---------|--------|" >> $GITHUB_STEP_SUMMARY
+          echo "| Lint    | ${{ needs.lint.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Build   | ${{ needs.build.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Deploy  | ${{ needs.deploy.result }} |" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "**Branch:** \`${{ github.ref_name }}\` | **Commit:** \`${{ github.sha }}\`" >> $GITHUB_STEP_SUMMARY
