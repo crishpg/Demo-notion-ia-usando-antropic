@@ -16,20 +16,36 @@
 set -euo pipefail
 
 # ──────────────────────────────────────────────────────────────────────────────
-# GUARDA-CHUVA: se foi chamado como root via "sudo curl|bash" ou "sudo bash",
-# reexecuta como o usuário real (SUDO_USER) para que git/npm funcionem corretamente.
+# GUARDA-CHUVA: se executado como root (sudo curl|bash ou sudo bash),
+# baixa o script para um arquivo temporário e reexecuta como usuário real.
+#
+# Problema: curl|bash faz o bash ler de stdin — $0 vira "/dev/stdin" e não
+# pode ser copiado/reexecutado. A solução é baixar novamente via curl.
 # ──────────────────────────────────────────────────────────────────────────────
-if [[ "$EUID" -eq 0 ]] && [[ -n "${SUDO_USER:-}" ]]; then
-  echo "[WARN]  Script executado como root. Reexecutando como '${SUDO_USER}'..."
-  exec sudo -u "$SUDO_USER" bash "$0" "$@"
-elif [[ "$EUID" -eq 0 ]]; then
-  # root sem SUDO_USER: tenta achar o primeiro usuário não-root com shell
-  REAL_USER=$(getent passwd | awk -F: '$3>=1000 && $7!~/nologin|false/{print $1; exit}')
-  if [[ -n "$REAL_USER" ]]; then
-    echo "[WARN]  Script executado como root. Reexecutando como '${REAL_USER}'..."
-    exec sudo -u "$REAL_USER" bash "$0" "$@"
+_SCRIPT_URL="https://raw.githubusercontent.com/crishpg/Demo-notion-ia-usando-antropic/main/scripts/quickstart.sh"
+
+if [[ "$EUID" -eq 0 ]]; then
+  REAL_USER="${SUDO_USER:-}"
+  if [[ -z "$REAL_USER" ]]; then
+    REAL_USER=$(getent passwd | awk -F: '$3>=1000 && $7!~/nologin|false/{print $1; exit}')
   fi
-  # Não conseguiu descobrir usuário — continua como root (último recurso)
+
+  if [[ -n "$REAL_USER" ]]; then
+    TMPSCRIPT=$(mktemp /tmp/quickstart-XXXXXX.sh)
+    # Usa o arquivo em disco se disponível; caso contrário baixa do GitHub
+    if [[ -f "$0" && "$0" != "/dev/stdin" && "$0" != "bash" ]]; then
+      cp "$0" "$TMPSCRIPT"
+    else
+      echo "[WARN]  Baixando script para arquivo temporário..."
+      curl -fsSL "${_SCRIPT_URL}?t=$(date +%s)" -o "$TMPSCRIPT" || \
+        { echo "[ERROR] Falha ao baixar o script. Verifique a conexão."; exit 1; }
+    fi
+    chmod +x "$TMPSCRIPT"
+    chown "$REAL_USER" "$TMPSCRIPT"
+    echo "[WARN]  Executado como root. Reexecutando como '${REAL_USER}'..."
+    exec sudo -u "$REAL_USER" bash "$TMPSCRIPT" "$@"
+  fi
+  echo "[WARN]  Continuando como root (usuário real não identificado)."
 fi
 
 # ──────────────────────────────────────────────────────────────────────────────
