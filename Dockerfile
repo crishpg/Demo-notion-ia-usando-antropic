@@ -6,15 +6,17 @@ FROM node:18-alpine AS builder
 WORKDIR /app
 
 # Copiar arquivos de dependências
+# package-lock.json é incluído quando presente (melhora cache)
 COPY package*.json ./
 
-# Instalar dependências
-RUN npm ci --only=production && npm cache clean --force
+# Instalar TODAS as dependências (dev incluído — necessário para o build Next.js)
+# Usa npm install pois package-lock.json pode não existir no repositório
+RUN npm install && npm cache clean --force
 
 # Copiar código fonte
 COPY . .
 
-# Build da aplicação Next.js
+# Build da aplicação Next.js (gera .next/standalone)
 RUN npm run build
 
 # ==================================
