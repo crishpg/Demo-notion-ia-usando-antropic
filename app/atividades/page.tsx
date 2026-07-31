@@ -32,7 +32,8 @@ const priorColor: Record<string, string> = {
   'Baixa': 'bg-accent-green/10 text-accent-green',
 };
 
-const emptyForm = () => ({ nome: '', projeto_id: '', status: 'Não iniciada' as const, prioridade: '' as '', data_inicio: '', data_fim: '' });
+type FormState = { nome: string; projeto_id: string; status: 'Não iniciada' | 'Em andamento' | 'Concluído'; prioridade: '' | 'Baixa' | 'Média' | 'Alta'; data_inicio: string; data_fim: string; };
+const emptyForm = (): FormState => ({ nome: '', projeto_id: '', status: 'Não iniciada', prioridade: '', data_inicio: '', data_fim: '' });
 
 export default function AtividadesPage() {
   const [atividades, setAtividades] = useState<Atividade[]>([]);
