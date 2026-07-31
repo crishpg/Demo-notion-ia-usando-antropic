@@ -1,0 +1,584 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Sistema Para Freelancers — Documentação v2.0</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, "Segoe UI", system-ui, sans-serif; font-size: 14px; line-height: 1.6; background: #ffffff; color: #1f2328; padding: 32px 16px 48px; }
+  .wrapper { max-width: 760px; margin: 0 auto; }
+
+  .page-header { border-bottom: 2px solid #e5e7eb; padding-bottom: 20px; margin-bottom: 32px; }
+  .page-header h1 { font-size: 22px; font-weight: 700; }
+  .page-header p { color: #57606a; margin-top: 4px; font-size: 13px; }
+  .badge-row { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+  .badge { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 11px; font-weight: 600; border: 1px solid #e5e7eb; color: #57606a; background: #f7f8fa; }
+  .badge.new { background: #f0fdf4; color: #16a34a; border-color: #bbf7d0; }
+
+  nav { background: #f7f8fa; border: 1px solid #e5e7eb; border-radius: 6px; padding: 14px 18px; margin-bottom: 32px; }
+  nav h3 { font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; color: #57606a; margin-bottom: 8px; }
+  nav ul { list-style: none; columns: 2; column-gap: 24px; }
+  nav ul li { margin-bottom: 4px; }
+  nav ul li a { color: #3b82d4; text-decoration: none; font-size: 13px; }
+  nav ul li a:hover { text-decoration: underline; }
+
+  section { margin-bottom: 40px; }
+  h2 { font-size: 17px; font-weight: 700; border-bottom: 1px solid #e5e7eb; padding-bottom: 6px; margin-bottom: 16px; }
+  h3 { font-size: 14px; font-weight: 700; margin: 18px 0 8px; }
+  p { margin-bottom: 10px; }
+
+  pre { background: #f7f8fa; border: 1px solid #e5e7eb; border-radius: 6px; padding: 14px 16px; overflow-x: auto; font-size: 12px; font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace; margin: 8px 0 14px; line-height: 1.55; }
+  code { background: #f7f8fa; border: 1px solid #e5e7eb; border-radius: 3px; padding: 1px 5px; font-size: 12px; font-family: "SFMono-Regular", Consolas, monospace; }
+
+  .alert { border-left: 4px solid #3b82d4; background: #f0f6ff; border-radius: 0 6px 6px 0; padding: 12px 16px; margin: 12px 0; font-size: 13px; }
+  .alert.fix  { border-left-color: #22c55e; background: #f0fdf4; }
+  .alert.warn { border-left-color: #f59e0b; background: #fffbeb; }
+  .alert.err  { border-left-color: #ef4444; background: #fef2f2; }
+  .alert strong { font-weight: 700; }
+
+  table { width: 100%; border-collapse: collapse; margin: 10px 0 16px; font-size: 13px; }
+  th { background: #f7f8fa; border: 1px solid #e5e7eb; padding: 7px 10px; text-align: left; font-weight: 700; }
+  td { border: 1px solid #e5e7eb; padding: 7px 10px; vertical-align: top; }
+  tr:nth-child(even) td { background: #fafafa; }
+
+  .steps { counter-reset: step; list-style: none; padding: 0; }
+  .steps li { counter-increment: step; position: relative; padding-left: 36px; margin-bottom: 10px; }
+  .steps li::before { content: counter(step); position: absolute; left: 0; top: 0; width: 24px; height: 24px; border-radius: 50%; background: #3b82d4; color: #fff; display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 700; line-height: 1; }
+
+  .checklist { list-style: none; padding: 0; }
+  .checklist li { padding: 3px 0 3px 22px; position: relative; font-size: 13px; }
+  .checklist li::before { content: "✓"; position: absolute; left: 0; color: #22c55e; font-weight: 700; }
+  .checklist li.todo::before { content: "○"; color: #57606a; }
+
+  .cards4 { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; margin: 12px 0; }
+  .cards3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin: 12px 0; }
+  .card { border: 1px solid #e5e7eb; border-radius: 6px; padding: 12px 14px; background: #f7f8fa; }
+  .card.highlight { border-color: #bbf7d0; background: #f0fdf4; }
+  .card .card-title { font-weight: 700; font-size: 13px; margin-bottom: 4px; }
+  .card .card-meta { font-size: 12px; color: #57606a; }
+
+  .commit-tag { display: inline-block; padding: 2px 7px; border-radius: 4px; font-size: 11px; font-weight: 700; font-family: monospace; background: #f0fdf4; color: #16a34a; border: 1px solid #bbf7d0; }
+
+  .method { display: inline-block; padding: 1px 6px; border-radius: 3px; font-size: 11px; font-weight: 700; font-family: monospace; margin-right: 4px; }
+  .get    { background: #dbeafe; color: #1d4ed8; }
+  .post   { background: #dcfce7; color: #15803d; }
+  .put    { background: #fef9c3; color: #854d0e; }
+  .delete { background: #fee2e2; color: #b91c1c; }
+
+  .step-block { display: flex; gap: 14px; margin-bottom: 20px; }
+  .step-n { flex-shrink: 0; width: 32px; height: 32px; border-radius: 50%; background: #3b82d4; color: #fff; display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 700; margin-top: 2px; }
+  .step-n.warn { background: #f59e0b; }
+  .step-body2 { flex: 1; min-width: 0; }
+  .step-body2 strong { font-size: 14px; display: block; margin-bottom: 4px; }
+
+  hr { border: none; border-top: 1px solid #e5e7eb; margin: 32px 0; }
+  footer { text-align: center; font-size: 11px; color: #57606a; border-top: 1px solid #e5e7eb; padding-top: 14px; margin-top: 48px; }
+</style>
+</head>
+<body>
+<div class="wrapper">
+
+  <!-- Header -->
+  <div class="page-header">
+    <h1>Sistema Para Freelancers</h1>
+    <p>Documentação completa — versão 2.0 com CRUD completo e PostgreSQL &mdash; atualizada em julho 2025</p>
+    <div class="badge-row">
+      <span class="badge">Next.js 14.2</span>
+      <span class="badge">TypeScript 5</span>
+      <span class="badge">Tailwind CSS 3.4</span>
+      <span class="badge">PostgreSQL 14+</span>
+      <span class="badge">Docker</span>
+      <span class="badge">Node.js 18</span>
+      <span class="badge new">✦ CRUD completo v2.0</span>
+      <span class="badge new">✦ API Routes REST</span>
+      <span class="badge new">✦ pg (node-postgres)</span>
+    </div>
+  </div>
+
+  <!-- Nav -->
+  <nav>
+    <h3>Índice</h3>
+    <ul>
+      <li><a href="#changelog">Changelog</a></li>
+      <li><a href="#sobre">Sobre o Projeto</a></li>
+      <li><a href="#arquitetura">Arquitetura v2.0</a></li>
+      <li><a href="#api">API Routes REST</a></li>
+      <li><a href="#paginas">Páginas com CRUD</a></li>
+      <li><a href="#banco">Banco de Dados</a></li>
+      <li><a href="#quickstart">Quick Start (1 comando)</a></li>
+      <li><a href="#deploy">Deploy / Atualizar no Ubuntu</a></li>
+      <li><a href="#env">Variáveis de Ambiente</a></li>
+      <li><a href="#comandos">Comandos Úteis</a></li>
+      <li><a href="#troubleshooting">Troubleshooting</a></li>
+      <li><a href="#producao">Produção</a></li>
+      <li><a href="#roadmap">Roadmap</a></li>
+    </ul>
+  </nav>
+
+  <!-- Changelog -->
+  <section id="changelog">
+    <h2>Changelog</h2>
+    <table>
+      <thead><tr><th>Commit</th><th>Versão</th><th>Descrição</th></tr></thead>
+      <tbody>
+        <tr><td><span class="commit-tag">00a09e4</span></td><td><strong>v2.0.2</strong></td><td>Fix TypeScript: tipo <code>FormState</code> explícito em projetos — corrige erro de build</td></tr>
+        <tr><td><span class="commit-tag">70107bb</span></td><td><strong>v2.0.1</strong></td><td>Fix TypeScript: tipo <code>FormState</code> explícito em atividades — corrige erro de build</td></tr>
+        <tr><td><span class="commit-tag">49bf20c</span></td><td><strong>v2.0.0</strong></td><td>CRUD completo com PostgreSQL — API Routes REST, modais de formulário, confirmação de exclusão, dashboard dinâmico</td></tr>
+        <tr><td><span class="commit-tag">9bf46da</span></td><td>v1.1</td><td>Criadas as 4 páginas da aplicação — corrige erro 404</td></tr>
+        <tr><td><span class="commit-tag">b8c9b6d</span></td><td>v1.0</td><td>Fix Dockerfile: <code>RUN mkdir -p public</code> — corrige falha no build Docker</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <!-- Sobre -->
+  <section id="sobre">
+    <h2>Sobre o Projeto</h2>
+    <p>O <strong>Sistema Para Freelancers</strong> é uma aplicação web completa para gerenciar clientes, projetos e atividades, com design inspirado no Notion. Desenvolvida com Next.js App Router, TypeScript e PostgreSQL.</p>
+    <ul class="checklist">
+      <li>CRUD completo de clientes, projetos e atividades</li>
+      <li>Dashboard com estatísticas em tempo real via API</li>
+      <li>Rastreamento de prazos e alertas de deadline</li>
+      <li>Sistema de prioridades para atividades</li>
+      <li>Interface responsiva inspirada no Notion (dark mode)</li>
+      <li>API REST com Next.js Route Handlers + node-postgres</li>
+      <li>Deploy automatizado via Docker e script quickstart</li>
+      <li class="todo">Autenticação de usuários (planejado)</li>
+      <li class="todo">Sincronização com Notion (planejado)</li>
+    </ul>
+  </section>
+
+  <!-- Arquitetura -->
+  <section id="arquitetura">
+    <h2>Arquitetura v2.0</h2>
+
+    <h3>Fluxo de dados</h3>
+    <pre>Browser (React — 'use client')
+  │
+  ├─ fetch('/api/clientes')   ──→  app/api/clientes/route.ts
+  ├─ fetch('/api/projetos')   ──→  app/api/projetos/route.ts
+  └─ fetch('/api/atividades') ──→  app/api/atividades/route.ts
+                                          │
+                                   lib/database.ts (Pool pg)
+                                          │
+                                   PostgreSQL (Docker container)</pre>
+
+    <h3>Arquivos v2.0</h3>
+    <div class="cards4">
+      <div class="card highlight"><div class="card-title">lib/database.ts</div><div class="card-meta">Pool de conexão pg com reuso em hot-reload do Next.js</div></div>
+      <div class="card highlight"><div class="card-title">app/api/clientes/route.ts</div><div class="card-meta">GET · POST · PUT · DELETE para clientes</div></div>
+      <div class="card highlight"><div class="card-title">app/api/projetos/route.ts</div><div class="card-meta">GET · POST · PUT · DELETE para projetos</div></div>
+      <div class="card highlight"><div class="card-title">app/api/atividades/route.ts</div><div class="card-meta">GET · POST · PUT · DELETE para atividades</div></div>
+      <div class="card highlight"><div class="card-title">components/Modal.tsx</div><div class="card-meta">Modal reutilizável (fecha com ESC ou clique fora)</div></div>
+      <div class="card highlight"><div class="card-title">components/ConfirmDialog.tsx</div><div class="card-meta">Diálogo de confirmação antes de excluir</div></div>
+    </div>
+
+    <h3>Estrutura completa de pastas</h3>
+    <pre>freelancers-app/
+├── app/
+│   ├── api/
+│   │   ├── clientes/route.ts     ← GET/POST/PUT/DELETE
+│   │   ├── projetos/route.ts     ← GET/POST/PUT/DELETE
+│   │   └── atividades/route.ts   ← GET/POST/PUT/DELETE
+│   ├── layout.tsx
+│   ├── page.tsx                  ← Dashboard (dados da API)
+│   ├── clientes/page.tsx         ← CRUD clientes
+│   ├── projetos/page.tsx         ← CRUD projetos
+│   └── atividades/page.tsx       ← CRUD atividades
+├── components/
+│   ├── Sidebar.tsx
+│   ├── Modal.tsx
+│   └── ConfirmDialog.tsx
+├── lib/
+│   ├── database.ts               ← Pool pg
+│   └── mockData.ts
+├── types/index.ts
+├── docs/
+│   └── documentacao.html         ← este arquivo
+├── sistema_freelancers_ddl.sql
+├── Dockerfile
+├── docker-compose.yml
+└── .env</pre>
+  </section>
+
+  <!-- API -->
+  <section id="api">
+    <h2>API Routes REST</h2>
+
+    <h3>/api/clientes</h3>
+    <table>
+      <thead><tr><th>Método</th><th>Body</th><th>Retorno</th></tr></thead>
+      <tbody>
+        <tr><td><span class="method get">GET</span></td><td>—</td><td>Array de clientes ordenados por nome</td></tr>
+        <tr><td><span class="method post">POST</span></td><td><code>{ nome, email?, telefone?, instagram?, drive? }</code></td><td>Cliente criado (201)</td></tr>
+        <tr><td><span class="method put">PUT</span></td><td><code>{ id, nome, email?, telefone?, instagram?, drive? }</code></td><td>Cliente atualizado</td></tr>
+        <tr><td><span class="method delete">DELETE</span></td><td><code>{ id }</code></td><td><code>{ ok: true }</code></td></tr>
+      </tbody>
+    </table>
+
+    <h3>/api/projetos</h3>
+    <table>
+      <thead><tr><th>Método</th><th>Body</th><th>Retorno</th></tr></thead>
+      <tbody>
+        <tr><td><span class="method get">GET</span></td><td>—</td><td>Array com <code>cliente_nome</code> via JOIN</td></tr>
+        <tr><td><span class="method post">POST</span></td><td><code>{ nome_projeto, cliente_id?, data_inicio?, data_fim?, status, lancado }</code></td><td>Projeto criado (201)</td></tr>
+        <tr><td><span class="method put">PUT</span></td><td><code>{ id, nome_projeto, cliente_id?, data_inicio?, data_fim?, status, lancado }</code></td><td>Projeto atualizado</td></tr>
+        <tr><td><span class="method delete">DELETE</span></td><td><code>{ id }</code></td><td><code>{ ok: true }</code></td></tr>
+      </tbody>
+    </table>
+
+    <h3>/api/atividades</h3>
+    <table>
+      <thead><tr><th>Método</th><th>Body</th><th>Retorno</th></tr></thead>
+      <tbody>
+        <tr><td><span class="method get">GET</span></td><td>—</td><td>Array com <code>nome_projeto</code> e <code>cliente_nome</code> via JOIN</td></tr>
+        <tr><td><span class="method post">POST</span></td><td><code>{ nome, projeto_id?, status, prioridade?, data_inicio?, data_fim? }</code></td><td>Atividade criada (201)</td></tr>
+        <tr><td><span class="method put">PUT</span></td><td><code>{ id, nome, projeto_id?, status, prioridade?, data_inicio?, data_fim? }</code></td><td>Atividade atualizada</td></tr>
+        <tr><td><span class="method delete">DELETE</span></td><td><code>{ id }</code></td><td><code>{ ok: true }</code></td></tr>
+      </tbody>
+    </table>
+
+    <h3>Testar via curl</h3>
+    <pre># Listar clientes
+curl http://localhost:3000/api/clientes
+
+# Criar cliente
+curl -X POST http://localhost:3000/api/clientes \
+  -H "Content-Type: application/json" \
+  -d '{"nome":"João Silva","email":"joao@exemplo.com"}'
+
+# Editar cliente
+curl -X PUT http://localhost:3000/api/clientes \
+  -H "Content-Type: application/json" \
+  -d '{"id":"UUID-AQUI","nome":"João Editado"}'
+
+# Excluir cliente
+curl -X DELETE http://localhost:3000/api/clientes \
+  -H "Content-Type: application/json" \
+  -d '{"id":"UUID-AQUI"}'</pre>
+  </section>
+
+  <!-- Páginas -->
+  <section id="paginas">
+    <h2>Páginas com CRUD Completo</h2>
+    <table>
+      <thead><tr><th>Página</th><th>Rota</th><th>Funcionalidades</th></tr></thead>
+      <tbody>
+        <tr>
+          <td><strong>Dashboard</strong><br><small>app/page.tsx</small></td>
+          <td><code>/</code></td>
+          <td>Cards de estatísticas em tempo real; projetos urgentes/atrasados; atividades em aberto — tudo via API</td>
+        </tr>
+        <tr>
+          <td><strong>Clientes</strong><br><small>app/clientes/page.tsx</small></td>
+          <td><code>/clientes</code></td>
+          <td>Cards com todos os dados; botão "Novo Cliente"; ícone lápis (editar) e lixeira (excluir); modal de formulário; confirmação de exclusão</td>
+        </tr>
+        <tr>
+          <td><strong>Projetos</strong><br><small>app/projetos/page.tsx</small></td>
+          <td><code>/projetos</code></td>
+          <td>Tabela com cliente, status, datas, flag lançado; "Novo Projeto"; select de clientes da API; checkbox lançado; editar/excluir inline</td>
+        </tr>
+        <tr>
+          <td><strong>Atividades</strong><br><small>app/atividades/page.tsx</small></td>
+          <td><code>/atividades</code></td>
+          <td>Tabela com projeto, status, prioridade, prazo; "Nova Atividade"; selects de projeto, status e prioridade; editar/excluir inline</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <h3>Comportamento dos modais</h3>
+    <ul class="checklist">
+      <li>Fechar com ESC ou clique fora do modal</li>
+      <li>Validação de campo obrigatório antes do submit</li>
+      <li>Mensagem de erro exibida dentro do formulário</li>
+      <li>Botão desabilitado durante o salvamento</li>
+      <li>Lista recarregada automaticamente após cada operação</li>
+    </ul>
+  </section>
+
+  <!-- Banco -->
+  <section id="banco">
+    <h2>Banco de Dados</h2>
+    <p>Schema em <code>sistema_freelancers_ddl.sql</code> — executado automaticamente na criação do container PostgreSQL.</p>
+
+    <h3>Tabelas</h3>
+    <table>
+      <thead><tr><th>Tabela</th><th>Colunas principais</th><th>Relacionamento</th></tr></thead>
+      <tbody>
+        <tr>
+          <td><strong>clientes</strong></td>
+          <td><code>id UUID PK</code>, nome, email, telefone, instagram, drive, created_at, updated_at</td>
+          <td>1 → N projetos</td>
+        </tr>
+        <tr>
+          <td><strong>projetos</strong></td>
+          <td><code>id UUID PK</code>, nome_projeto, <code>cliente_id FK</code>, data_inicio, data_fim, status, lancado, created_at, updated_at</td>
+          <td>1 → N atividades</td>
+        </tr>
+        <tr>
+          <td><strong>atividades</strong></td>
+          <td><code>id UUID PK</code>, nome, <code>projeto_id FK</code>, status, prioridade, data_inicio, data_fim, created_at, updated_at</td>
+          <td>N:1 com projetos</td>
+        </tr>
+      </tbody>
+    </table>
+
+    <h3>Valores válidos</h3>
+    <table>
+      <thead><tr><th>Campo</th><th>Valores aceitos</th></tr></thead>
+      <tbody>
+        <tr><td>projetos.status</td><td><code>Não iniciado</code> · <code>Em andamento</code> · <code>Concluído</code></td></tr>
+        <tr><td>atividades.status</td><td><code>Não iniciada</code> · <code>Em andamento</code> · <code>Concluído</code></td></tr>
+        <tr><td>atividades.prioridade</td><td><code>Baixa</code> · <code>Média</code> · <code>Alta</code></td></tr>
+      </tbody>
+    </table>
+
+    <ul class="checklist">
+      <li>11 índices para performance</li>
+      <li>3 views: vw_projetos_clientes, vw_atividades_completas, vw_estatisticas_clientes</li>
+      <li>Triggers automáticos de updated_at em todas as tabelas</li>
+      <li>ON DELETE SET NULL em projetos.cliente_id</li>
+      <li>ON DELETE CASCADE em atividades.projeto_id</li>
+    </ul>
+
+    <h3>Comandos úteis no banco</h3>
+    <pre># Acessar o PostgreSQL
+sudo docker compose exec postgres psql -U freelancer -d sistema_freelancers
+
+# Consultas úteis
+SELECT * FROM clientes;
+SELECT * FROM vw_projetos_clientes WHERE situacao_prazo != 'No prazo';
+SELECT * FROM vw_atividades_completas ORDER BY prioridade DESC;
+
+# Backup
+sudo docker compose exec postgres pg_dump -U freelancer sistema_freelancers > backup.sql
+
+# Restore
+sudo docker compose exec -T postgres psql -U freelancer -d sistema_freelancers &lt; backup.sql</pre>
+  </section>
+
+  <!-- Quick Start -->
+  <section id="quickstart">
+    <h2>Quick Start — 1 Comando (Primeira Vez)</h2>
+    <pre>curl -fsSL "https://raw.githubusercontent.com/crishpg/Demo-notion-ia-usando-antropic/main/scripts/quickstart.sh?$(date +%s)" | bash</pre>
+
+    <div class="alert"><strong>Não use sudo.</strong> O script escala internamente quando necessário.</div>
+
+    <h3>O que o script faz</h3>
+    <ol class="steps">
+      <li>Verifica Docker e Docker Compose instalados</li>
+      <li>Clona o repositório em <code>/opt/freelancers-app</code></li>
+      <li>Cria o arquivo <code>.env</code> com valores padrão</li>
+      <li>Build da imagem Docker com <code>--no-cache</code></li>
+      <li>Sobe PostgreSQL e aguarda healthcheck</li>
+      <li>Sobe a aplicação Next.js</li>
+      <li>Exibe URL pública <code>http://&lt;IP&gt;:3000</code></li>
+    </ol>
+  </section>
+
+  <!-- Deploy -->
+  <section id="deploy">
+    <h2>Atualizar no Ubuntu (containers já rodando)</h2>
+
+    <div class="alert warn"><strong>Cenário:</strong> containers <code>freelancers-db</code> e <code>freelancers-app</code> já estão rodando e você quer atualizar para a versão mais recente.</div>
+
+    <div class="step-block">
+      <div class="step-n">1</div>
+      <div class="step-body2">
+        <strong>Entrar na pasta do projeto</strong>
+        <pre>cd /opt/freelancers-app</pre>
+      </div>
+    </div>
+
+    <div class="step-block">
+      <div class="step-n">2</div>
+      <div class="step-body2">
+        <strong>Baixar atualizações do GitHub</strong>
+        <pre>git pull origin main</pre>
+      </div>
+    </div>
+
+    <div class="step-block">
+      <div class="step-n">3</div>
+      <div class="step-body2">
+        <strong>Parar apenas a aplicação (mantém o banco rodando)</strong>
+        <pre>sudo docker compose stop app</pre>
+      </div>
+    </div>
+
+    <div class="step-block">
+      <div class="step-n">4</div>
+      <div class="step-body2">
+        <strong>Rebuild da imagem (aguardar 2–5 min)</strong>
+        <pre>sudo docker compose build --no-cache app</pre>
+      </div>
+    </div>
+
+    <div class="step-block">
+      <div class="step-n">5</div>
+      <div class="step-body2">
+        <strong>Subir a nova versão</strong>
+        <pre>sudo docker compose up -d app</pre>
+      </div>
+    </div>
+
+    <div class="step-block">
+      <div class="step-n">6</div>
+      <div class="step-body2">
+        <strong>Verificar status e logs</strong>
+        <pre>sudo docker compose ps
+sudo docker compose logs --tail=30 app</pre>
+      </div>
+    </div>
+
+    <h3>Resumo — todos os comandos em sequência</h3>
+    <pre>cd /opt/freelancers-app
+git pull origin main
+sudo docker compose stop app
+sudo docker compose build --no-cache app
+sudo docker compose up -d app
+sudo docker compose ps</pre>
+
+    <div class="alert fix"><strong>DATABASE_URL no .env:</strong> em Docker, o host deve ser <code>@postgres:</code> (nome do serviço), não <code>@localhost:</code>.</div>
+  </section>
+
+  <!-- Env -->
+  <section id="env">
+    <h2>Variáveis de Ambiente</h2>
+    <p>Arquivo <code>.env</code> completo para o servidor Ubuntu em <code>/opt/freelancers-app/.env</code>:</p>
+    <pre>POSTGRES_USER=freelancer
+POSTGRES_PASSWORD=freelancer123
+POSTGRES_DB=sistema_freelancers
+POSTGRES_PORT=5432
+DATABASE_URL=postgresql://freelancer:freelancer123@postgres:5432/sistema_freelancers
+NODE_ENV=production
+APP_PORT=3000
+NOTION_TOKEN=
+PGADMIN_EMAIL=admin@admin.com
+PGADMIN_PASSWORD=admin
+PGADMIN_PORT=5050</pre>
+
+    <table>
+      <thead><tr><th>Variável</th><th>Padrão</th><th>Descrição</th></tr></thead>
+      <tbody>
+        <tr><td><code>POSTGRES_PASSWORD</code></td><td>freelancer123</td><td>Senha do banco — <strong>altere em produção</strong></td></tr>
+        <tr><td><code>DATABASE_URL</code></td><td>postgresql://freelancer:freelancer123@postgres:5432/sistema_freelancers</td><td>String de conexão usada pela app Next.js</td></tr>
+        <tr><td><code>APP_PORT</code></td><td>3000</td><td>Porta exposta da aplicação</td></tr>
+        <tr><td><code>NOTION_TOKEN</code></td><td>(vazio)</td><td>Token de integração Notion (opcional)</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <!-- Comandos -->
+  <section id="comandos">
+    <h2>Comandos Úteis</h2>
+    <pre># Status dos containers
+sudo docker compose ps
+sudo docker stats
+
+# Logs
+sudo docker compose logs -f app
+sudo docker compose logs --tail=100 app
+
+# Reiniciar a aplicação
+sudo docker compose restart app
+
+# Parar tudo (preserva dados)
+sudo docker compose down
+
+# Apagar tudo incluindo banco
+sudo docker compose down -v
+
+# PgAdmin (interface web)
+sudo docker compose --profile dev up -d
+# Acesse: http://localhost:5050</pre>
+  </section>
+
+  <!-- Troubleshooting -->
+  <section id="troubleshooting">
+    <h2>Troubleshooting</h2>
+
+    <h3>Erro de build TypeScript — Type not assignable</h3>
+    <div class="alert fix"><strong>Corrigidos nos commits 70107bb e 00a09e4.</strong> Execute <code>git pull origin main</code> antes de rebuildar.</div>
+
+    <h3>Erro no build: "/app/public": not found</h3>
+    <div class="alert fix"><strong>Corrigido no commit b8c9b6d.</strong> O Dockerfile tem <code>RUN mkdir -p public</code>. Após <code>git pull</code> o problema não ocorre.</div>
+
+    <h3>Erro 404 nas páginas</h3>
+    <div class="alert fix"><strong>Corrigido no commit 9bf46da.</strong> As páginas <code>page.tsx</code> foram criadas. Após <code>git pull</code> e rebuild está resolvido.</div>
+
+    <h3>API retorna 500 — banco não conecta</h3>
+    <pre># Verificar se postgres está healthy
+sudo docker compose ps
+
+# Verificar DATABASE_URL dentro do container
+sudo docker compose exec app env | grep DATABASE_URL
+
+# Deve conter "@postgres:" (não "@localhost:")
+# Se errado, corrija o .env e reinicie:
+sudo docker compose up -d app</pre>
+
+    <h3>Aviso: attribute 'version' is obsolete</h3>
+    <div class="alert warn">Apenas aviso — não é erro. O build continua normalmente.</div>
+
+    <h3>Porta 3000 já em uso</h3>
+    <pre>lsof -i :3000
+# Altere APP_PORT=3001 no .env e reinicie</pre>
+
+    <h3>Permissões Docker no Linux</h3>
+    <pre>sudo usermod -aG docker $USER
+newgrp docker</pre>
+  </section>
+
+  <!-- Produção -->
+  <section id="producao">
+    <h2>Produção — Checklist</h2>
+    <ul class="checklist">
+      <li class="todo">Alterar POSTGRES_PASSWORD e PGADMIN_PASSWORD</li>
+      <li class="todo">Remover exposição da porta 5432 no docker-compose.yml</li>
+      <li class="todo">Configurar HTTPS com Nginx ou Traefik</li>
+      <li class="todo">Configurar firewall (ufw allow 3000)</li>
+      <li class="todo">Configurar backups automáticos via cron</li>
+      <li class="todo">Testar procedimento de restore</li>
+    </ul>
+
+    <h3>Backup automático (cron)</h3>
+    <pre># Editar crontab
+crontab -e
+
+# Adicionar linha — backup diário às 2h
+0 2 * * * cd /opt/freelancers-app && sudo docker compose exec -T postgres \
+  pg_dump -U freelancer sistema_freelancers \
+  > /backups/backup_$(date +\%Y\%m\%d).sql</pre>
+  </section>
+
+  <!-- Roadmap -->
+  <section id="roadmap">
+    <h2>Roadmap</h2>
+    <table>
+      <thead><tr><th>Versão</th><th>Feature</th><th>Status</th></tr></thead>
+      <tbody>
+        <tr><td><strong>2.0</strong></td><td>CRUD completo com PostgreSQL, API Routes REST, modais</td><td><strong>Lançado</strong></td></tr>
+        <tr><td>2.1</td><td>Paginação e filtros nas listagens</td><td>Planejado</td></tr>
+        <tr><td>2.2</td><td>Autenticação de usuários, multi-tenant</td><td>Planejado</td></tr>
+        <tr><td>2.3</td><td>Sincronização bidirecional com Notion</td><td>Planejado</td></tr>
+        <tr><td>3.0</td><td>Módulo financeiro, controle de horas, propostas</td><td>Futuro</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <hr>
+
+  <section>
+    <h2>Repositório</h2>
+    <p>
+      <a href="https://github.com/crishpg/Demo-notion-ia-usando-antropic" target="_blank">github.com/crishpg/Demo-notion-ia-usando-antropic</a>
+      &mdash; Branch: <code>main</code> &mdash; Versão: <code>2.0.2</code>
+    </p>
+  </section>
+
+  <footer>Made with IBM Bob</footer>
+</div>
+</body>
+</html>
