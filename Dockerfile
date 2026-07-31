@@ -16,6 +16,9 @@ RUN npm install && npm cache clean --force
 # Copiar código fonte
 COPY . .
 
+# Garantir que o diretório public existe (Next.js não o cria se não houver assets)
+RUN mkdir -p public
+
 # Build da aplicação Next.js (gera .next/standalone)
 RUN npm run build
 
