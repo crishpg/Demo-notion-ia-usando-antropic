@@ -97,6 +97,16 @@ success "Docker Compose:  $($COMPOSE version)"
 # ==============================================================================
 step "Clonando repositório"
 
+# Corrige ownership do diretório quando criado como root (install.sh usa sudo).
+# Sem isso o Git recusa operar com "dubious ownership".
+if [[ -d "$APP_DIR" ]] && [[ "$(stat -c '%U' "$APP_DIR")" != "$(whoami)" ]]; then
+  info "Corrigindo ownership de ${APP_DIR} para $(whoami)..."
+  sudo chown -R "$(whoami)":"$(whoami)" "$APP_DIR"
+fi
+
+# Registra safe.directory como fallback caso o chown não seja suficiente
+git config --global --add safe.directory "$APP_DIR" 2>/dev/null || true
+
 if [[ -d "${APP_DIR}/.git" ]]; then
   info "Repositório já existe. Atualizando..."
   cd "$APP_DIR"
