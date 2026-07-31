@@ -90,7 +90,7 @@ fi
 # ------------------------------------------------------------------------------
 # 3. Instalar Docker Compose (standalone v2 como fallback)
 # ------------------------------------------------------------------------------
-if docker compose version &>/dev/null; then
+if docker compose version &>/dev/null 2>&1; then
   success "Docker Compose (plugin) disponível: $(docker compose version)"
 elif command -v docker-compose &>/dev/null; then
   success "Docker Compose já instalado: $(docker-compose --version)"

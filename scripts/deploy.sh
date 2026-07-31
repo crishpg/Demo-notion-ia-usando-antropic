@@ -49,17 +49,17 @@ done
 step "Verificando pré-requisitos..."
 
 command -v docker &>/dev/null || error "Docker não encontrado. Execute: sudo bash scripts/install.sh"
-docker compose version &>/dev/null || \
-  command -v docker-compose &>/dev/null || \
-  error "Docker Compose não encontrado. Execute: sudo bash scripts/install.sh"
 
 [[ -f "$COMPOSE_FILE" ]] || error "docker-compose.yml não encontrado em: $APP_DIR"
 
-# Determina o comando correto de compose
-if docker compose version &>/dev/null; then
+# Determina o comando correto de compose:
+# Prioridade: plugin nativo "docker compose" > binário standalone "docker-compose"
+if docker compose version &>/dev/null 2>&1; then
   COMPOSE_CMD="docker compose"
-else
+elif command -v docker-compose &>/dev/null; then
   COMPOSE_CMD="docker-compose"
+else
+  error "Docker Compose não encontrado. Execute: sudo bash scripts/install.sh"
 fi
 
 success "Docker:          $(docker --version)"
