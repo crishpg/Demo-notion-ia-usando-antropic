@@ -3,25 +3,38 @@
 # quickstart.sh — Deploy completo em 1 comando
 # Otimizado para: Pluralsight Cloud Playground (Ubuntu 22.04)
 #
-# Uso:
-#   curl -fsSL https://raw.githubusercontent.com/crishpg/Demo-notion-ia-usando-antropic/main/scripts/quickstart.sh | bash
+# Uso CORRETO (sem sudo — o script escala internamente só o docker):
+#   curl -fsSL "https://raw.githubusercontent.com/crishpg/Demo-notion-ia-usando-antropic/main/scripts/quickstart.sh?$(date +%s)" | bash
 #
 #   — OU, após clonar o repo —
 #   bash scripts/quickstart.sh
 #
-# Notas sobre o Pluralsight Playground:
-#   - Usuário cloud_user com sudo sem senha, mas fora do grupo docker
-#   - docker-compose standalone (não plugin) já instalado
-#   - systemctl pode não funcionar — sem systemd completo
-#   - /opt/freelancers-app já existe de sessões anteriores
-#   - Sessão temporária — IP muda a cada novo lab
+# NÃO execute com sudo:  sudo bash ...  ou  sudo curl ... | bash
+# O script usa sudo apenas nos comandos docker quando necessário.
 # ==============================================================================
 
 set -euo pipefail
 
-# ------------------------------------------------------------------------------
+# ──────────────────────────────────────────────────────────────────────────────
+# GUARDA-CHUVA: se foi chamado como root via "sudo curl|bash" ou "sudo bash",
+# reexecuta como o usuário real (SUDO_USER) para que git/npm funcionem corretamente.
+# ──────────────────────────────────────────────────────────────────────────────
+if [[ "$EUID" -eq 0 ]] && [[ -n "${SUDO_USER:-}" ]]; then
+  echo "[WARN]  Script executado como root. Reexecutando como '${SUDO_USER}'..."
+  exec sudo -u "$SUDO_USER" bash "$0" "$@"
+elif [[ "$EUID" -eq 0 ]]; then
+  # root sem SUDO_USER: tenta achar o primeiro usuário não-root com shell
+  REAL_USER=$(getent passwd | awk -F: '$3>=1000 && $7!~/nologin|false/{print $1; exit}')
+  if [[ -n "$REAL_USER" ]]; then
+    echo "[WARN]  Script executado como root. Reexecutando como '${REAL_USER}'..."
+    exec sudo -u "$REAL_USER" bash "$0" "$@"
+  fi
+  # Não conseguiu descobrir usuário — continua como root (último recurso)
+fi
+
+# ──────────────────────────────────────────────────────────────────────────────
 # Cores e helpers
-# ------------------------------------------------------------------------------
+# ──────────────────────────────────────────────────────────────────────────────
 RED='\033[0;31m'; GREEN='\033[0;32m'
 YELLOW='\033[1;33m'; BLUE='\033[0;34m'; NC='\033[0m'
 
@@ -35,56 +48,52 @@ step()    { echo -e "\n${BLUE}════════════════�
 
 REPO_URL="https://github.com/crishpg/Demo-notion-ia-usando-antropic.git"
 BRANCH="${BRANCH:-main}"
+CURRENT_USER="$(whoami)"
 
-# ------------------------------------------------------------------------------
-# Determina se docker precisa de sudo
-# No Playground, cloud_user não está no grupo docker na 1ª execução.
-# NÃO tentamos reexecutar o script (quebra com curl|bash pois $0 = /dev/stdin).
-# Solução: prefixar todos os comandos docker com sudo quando necessário.
-# ------------------------------------------------------------------------------
+info "Executando como usuário: ${CURRENT_USER}"
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Determina prefixo sudo para comandos docker
+# cloud_user não está no grupo docker na 1ª execução — usa sudo só para docker.
+# ──────────────────────────────────────────────────────────────────────────────
 if docker ps &>/dev/null 2>&1; then
   DSUDO=""
 else
   DSUDO="sudo"
-  info "Docker requer sudo nesta sessão (cloud_user fora do grupo docker)."
+  info "Docker requer sudo nesta sessão."
 fi
 
-# Detectar e fixar o comando do compose
+# Monta string do compose respeitando DSUDO
 if ${DSUDO} docker compose version &>/dev/null 2>&1; then
-  # Plugin nativo: "docker compose"
-  if [[ -n "$DSUDO" ]]; then
-    COMPOSE="sudo docker compose"
-  else
-    COMPOSE="docker compose"
-  fi
+  COMPOSE="${DSUDO:+sudo }docker compose"
 elif command -v docker-compose &>/dev/null; then
-  # Binário standalone
-  if [[ -n "$DSUDO" ]]; then
-    COMPOSE="sudo docker-compose"
-  else
-    COMPOSE="docker-compose"
-  fi
+  COMPOSE="${DSUDO:+sudo }docker-compose"
 else
   error "Docker Compose não encontrado. Execute: sudo apt-get install -y docker-compose-plugin"
 fi
+COMPOSE="${COMPOSE# }"   # remove espaço inicial se DSUDO vazio
 
-# ------------------------------------------------------------------------------
+# ──────────────────────────────────────────────────────────────────────────────
 # Detectar diretório de instalação
-# /opt/freelancers-app tem ownership de root após install.sh.
-# Garantimos ownership do usuário atual ou usamos ~/app como fallback.
-# ------------------------------------------------------------------------------
-if sudo chown "$(whoami)" /opt/freelancers-app 2>/dev/null && [[ -w "/opt/freelancers-app" ]]; then
+# Corrige ownership para o usuário atual (não root) antes de qualquer operação.
+# ──────────────────────────────────────────────────────────────────────────────
+if [[ -d "/opt/freelancers-app" ]]; then
+  # Sempre corrige ownership para o usuário atual
+  sudo chown -R "${CURRENT_USER}:${CURRENT_USER}" /opt/freelancers-app 2>/dev/null || true
+  APP_DIR="/opt/freelancers-app"
+elif sudo mkdir -p /opt/freelancers-app 2>/dev/null && \
+     sudo chown -R "${CURRENT_USER}:${CURRENT_USER}" /opt/freelancers-app 2>/dev/null; then
   APP_DIR="/opt/freelancers-app"
 else
   APP_DIR="${HOME}/app"
   mkdir -p "$APP_DIR"
-  warn "Usando diretório alternativo: ${APP_DIR}"
+  warn "Sem permissão em /opt — usando ${APP_DIR}"
 fi
 export APP_DIR
 
-# ==============================================================================
+# ══════════════════════════════════════════════════════════════════════════════
 # PASSO 1 — Verificar Docker
-# ==============================================================================
+# ══════════════════════════════════════════════════════════════════════════════
 step "Verificando Docker"
 
 command -v docker &>/dev/null || error "Docker não encontrado. Execute: sudo apt-get install -y docker.io"
@@ -92,19 +101,12 @@ command -v docker &>/dev/null || error "Docker não encontrado. Execute: sudo ap
 success "Docker:          $(docker --version)"
 success "Docker Compose:  $($COMPOSE version)"
 
-# ==============================================================================
+# ══════════════════════════════════════════════════════════════════════════════
 # PASSO 2 — Clonar ou atualizar o repositório
-# ==============================================================================
+# ══════════════════════════════════════════════════════════════════════════════
 step "Clonando repositório"
 
-# Corrige ownership do diretório quando criado como root (install.sh usa sudo).
-# Sem isso o Git recusa operar com "dubious ownership".
-if [[ -d "$APP_DIR" ]] && [[ "$(stat -c '%U' "$APP_DIR")" != "$(whoami)" ]]; then
-  info "Corrigindo ownership de ${APP_DIR} para $(whoami)..."
-  sudo chown -R "$(whoami)":"$(whoami)" "$APP_DIR"
-fi
-
-# Registra safe.directory como fallback caso o chown não seja suficiente
+# Garante safe.directory para o usuário atual
 git config --global --add safe.directory "$APP_DIR" 2>/dev/null || true
 
 if [[ -d "${APP_DIR}/.git" ]]; then
@@ -123,9 +125,9 @@ fi
 
 cd "$APP_DIR"
 
-# ==============================================================================
+# ══════════════════════════════════════════════════════════════════════════════
 # PASSO 3 — Criar arquivo .env
-# ==============================================================================
+# ══════════════════════════════════════════════════════════════════════════════
 step "Configurando variáveis de ambiente"
 
 ENV_FILE="${APP_DIR}/.env"
@@ -153,12 +155,11 @@ fi
 
 set -o allexport; source "$ENV_FILE"; set +o allexport
 
-# ==============================================================================
+# ══════════════════════════════════════════════════════════════════════════════
 # PASSO 4 — Build + containers
-# ==============================================================================
+# ══════════════════════════════════════════════════════════════════════════════
 step "Build + Deploy dos containers"
 
-# Para containers anteriores sem apagar volumes
 $COMPOSE --file docker-compose.yml --env-file "$ENV_FILE" \
   down --remove-orphans 2>/dev/null || true
 
@@ -166,7 +167,6 @@ info "Construindo imagem Docker (pode levar alguns minutos)..."
 $COMPOSE --file docker-compose.yml --env-file "$ENV_FILE" \
   build --no-cache app
 
-# Sobe PostgreSQL e aguarda ficar saudável
 $COMPOSE --file docker-compose.yml --env-file "$ENV_FILE" up -d postgres
 
 info "Aguardando PostgreSQL ficar saudável..."
@@ -182,9 +182,9 @@ $COMPOSE --file docker-compose.yml --env-file "$ENV_FILE" \
   up -d --remove-orphans app
 success "Containers no ar."
 
-# ==============================================================================
+# ══════════════════════════════════════════════════════════════════════════════
 # PASSO 5 — Healthcheck
-# ==============================================================================
+# ══════════════════════════════════════════════════════════════════════════════
 step "Verificando saúde da aplicação"
 
 APP_PORT="${APP_PORT:-3000}"
