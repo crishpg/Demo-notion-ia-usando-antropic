@@ -26,7 +26,8 @@ const statusColor: Record<string, string> = {
   'Não iniciado': 'bg-notion-100 dark:bg-notion-800 text-notion-500',
 };
 
-const emptyForm = () => ({ nome_projeto: '', cliente_id: '', data_inicio: '', data_fim: '', status: 'Não iniciado' as const, lancado: false });
+type FormState = { nome_projeto: string; cliente_id: string; data_inicio: string; data_fim: string; status: 'Não iniciado' | 'Em andamento' | 'Concluído'; lancado: boolean; };
+const emptyForm = (): FormState => ({ nome_projeto: '', cliente_id: '', data_inicio: '', data_fim: '', status: 'Não iniciado', lancado: false });
 
 export default function ProjetosPage() {
   const [projetos, setProjetos] = useState<Projeto[]>([]);
