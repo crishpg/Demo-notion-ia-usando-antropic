@@ -142,6 +142,26 @@ jobs:
             -e "ssh -p ${{ secrets.SSH_PORT || 22 }}" \
             ./ ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }}:/opt/freelancers-app/
 
+      - name: Criar/atualizar .env no servidor
+        run: |
+          ssh -p ${{ secrets.SSH_PORT || 22 }} \
+            ${{ secrets.SSH_USER }}@${{ secrets.SSH_HOST }} \
+            "cat > /opt/freelancers-app/.env << 'ENVEOF'
+          # Gerado automaticamente pelo GitHub Actions — NÃO edite manualmente
+          POSTGRES_USER=${{ vars.POSTGRES_USER || 'freelancer' }}
+          POSTGRES_PASSWORD=${{ secrets.POSTGRES_PASSWORD }}
+          POSTGRES_DB=${{ vars.POSTGRES_DB || 'sistema_freelancers' }}
+          POSTGRES_PORT=${{ vars.POSTGRES_PORT || '5432' }}
+          DATABASE_URL=postgresql://${{ vars.POSTGRES_USER || 'freelancer' }}:${{ secrets.POSTGRES_PASSWORD }}@localhost:${{ vars.POSTGRES_PORT || '5432' }}/${{ vars.POSTGRES_DB || 'sistema_freelancers' }}
+          NODE_ENV=${{ vars.NODE_ENV || 'production' }}
+          APP_PORT=${{ vars.APP_PORT || '3000' }}
+          NOTION_TOKEN=${{ secrets.NOTION_TOKEN }}
+          PGADMIN_EMAIL=admin@admin.com
+          PGADMIN_PASSWORD=${{ secrets.PGADMIN_PASSWORD }}
+          PGADMIN_PORT=5050
+          ENVEOF
+          chmod 600 /opt/freelancers-app/.env"
+
       - name: Executar deploy remoto
         run: |
           ssh -p ${{ secrets.SSH_PORT || 22 }} \
