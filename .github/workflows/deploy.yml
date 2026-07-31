@@ -5,7 +5,20 @@ on:
     branches: [main, master]
   pull_request:
     branches: [main, master]
-  workflow_dispatch:         # permite execução manual pelo GitHub
+  workflow_dispatch:
+    inputs:
+      target:
+        description: "Alvo do deploy manual"
+        required: false
+        default: "production"
+        type: choice
+        options:
+          - production
+          - playground
+      playground_ip:
+        description: "IP do Pluralsight Playground (apenas quando target=playground)"
+        required: false
+        default: ""
 
 # ==============================================================================
 # Variáveis de ambiente globais do workflow
@@ -203,3 +216,61 @@ jobs:
           echo "| Deploy  | ${{ needs.deploy.result }} |" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "**Branch:** \`${{ github.ref_name }}\` | **Commit:** \`${{ github.sha }}\`" >> $GITHUB_STEP_SUMMARY
+
+  # ============================================================================
+  # JOB 5 — Deploy para Pluralsight Cloud Playground (workflow_dispatch manual)
+  # ============================================================================
+  deploy-playground:
+    name: "Deploy → Pluralsight Playground"
+    runs-on: ubuntu-22.04
+    needs: build
+    if: >
+      github.event_name == 'workflow_dispatch' &&
+      github.event.inputs.target == 'playground' &&
+      github.event.inputs.playground_ip != ''
+
+    environment:
+      name: playground
+      url: http://${{ github.event.inputs.playground_ip }}:3000
+
+    steps:
+      - name: Checkout do código
+        uses: actions/checkout@v4
+
+      - name: Configurar chave SSH
+        uses: webfactory/ssh-agent@v0.9.0
+        with:
+          ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
+
+      - name: Adicionar Playground ao known_hosts
+        run: |
+          mkdir -p ~/.ssh
+          ssh-keyscan -H ${{ github.event.inputs.playground_ip }} >> ~/.ssh/known_hosts
+
+      - name: Sincronizar arquivos para o Playground
+        run: |
+          rsync -az --delete \
+            --exclude='.git' \
+            --exclude='node_modules' \
+            --exclude='.next' \
+            --exclude='backups' \
+            -e "ssh -p 22" \
+            ./ cloud_user@${{ github.event.inputs.playground_ip }}:/home/cloud_user/app/
+
+      - name: Executar quickstart no Playground
+        run: |
+          ssh -p 22 cloud_user@${{ github.event.inputs.playground_ip }} \
+            "cd /home/cloud_user/app && bash scripts/quickstart.sh"
+
+      - name: Verificar saúde pós-deploy no Playground
+        run: |
+          sleep 15
+          HTTP_STATUS=$(curl -o /dev/null -s -w "%{http_code}" \
+            "http://${{ github.event.inputs.playground_ip }}:3000/" || echo "000")
+          if [[ "$HTTP_STATUS" == "200" || "$HTTP_STATUS" == "304" ]]; then
+            echo "✅ Playground deploy OK! HTTP $HTTP_STATUS"
+            echo "🌐 URL: http://${{ github.event.inputs.playground_ip }}:3000"
+          else
+            echo "❌ Playground não respondeu (HTTP $HTTP_STATUS)"
+            exit 1
+          fi

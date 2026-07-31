@@ -4,6 +4,10 @@
 # Sistema Freelancers — Demo Notion IA usando Anthropic
 #
 # Uso: sudo bash scripts/install.sh
+#
+# Compatível com:
+#   - Servidor Ubuntu 22.04 dedicado (VPS, EC2, etc.)
+#   - Pluralsight Cloud Playground (cloud_user com sudo sem senha)
 # ==============================================================================
 
 set -euo pipefail
@@ -26,7 +30,12 @@ error()   { echo -e "${RED}[ERROR]${NC} $*"; exit 1; }
 # ------------------------------------------------------------------------------
 # Verificações iniciais
 # ------------------------------------------------------------------------------
-[[ "$EUID" -eq 0 ]] || error "Execute como root: sudo bash scripts/install.sh"
+# No Pluralsight Playground o usuário é cloud_user com sudo sem senha.
+# Aceita tanto root quanto sudo.
+if [[ "$EUID" -ne 0 ]]; then
+  info "Não é root — reexecutando com sudo..."
+  exec sudo bash "$0" "$@"
+fi
 
 OS_ID=$(grep -oP '(?<=^ID=).+' /etc/os-release | tr -d '"')
 OS_VERSION=$(grep -oP '(?<=^VERSION_ID=).+' /etc/os-release | tr -d '"')
@@ -107,17 +116,25 @@ fi
 # ------------------------------------------------------------------------------
 # 4. Adicionar usuário atual ao grupo docker (evita sudo nos próximos comandos)
 # ------------------------------------------------------------------------------
-REAL_USER="${SUDO_USER:-$USER}"
+REAL_USER="${SUDO_USER:-${USER:-cloud_user}}"
 if [[ -n "$REAL_USER" && "$REAL_USER" != "root" ]]; then
-  usermod -aG docker "$REAL_USER"
+  usermod -aG docker "$REAL_USER" 2>/dev/null || true
   success "Usuário '$REAL_USER' adicionado ao grupo docker."
-  warn "Faça logout/login para aplicar as permissões de grupo."
+  warn "Faça logout/login (ou 'newgrp docker') para aplicar as permissões."
 fi
 
 # ------------------------------------------------------------------------------
 # 5. Configurar firewall básico (UFW)
+# No Pluralsight Playground o firewall é gerenciado pela plataforma —
+# UFW é pulado se o ambiente não suportar (evita travar o SSH do lab).
 # ------------------------------------------------------------------------------
-if command -v ufw &>/dev/null; then
+IS_PLAYGROUND=false
+grep -qi "pluralsight\|playground\|cloud_user\|lab" /etc/hostname 2>/dev/null && IS_PLAYGROUND=true
+grep -qi "cloud_user" /etc/passwd 2>/dev/null && IS_PLAYGROUND=true
+
+if [[ "$IS_PLAYGROUND" == "true" ]]; then
+  warn "Ambiente Playground detectado — UFW ignorado (firewall gerenciado pela plataforma)."
+elif command -v ufw &>/dev/null; then
   info "Configurando UFW..."
   ufw --force reset
   ufw default deny incoming
@@ -134,9 +151,17 @@ fi
 
 # ------------------------------------------------------------------------------
 # 6. Criar diretório de dados persistentes
+# Usa /opt/freelancers-app; fallback para ~/app no Playground
 # ------------------------------------------------------------------------------
-APP_DATA_DIR="/opt/freelancers-app"
-mkdir -p "${APP_DATA_DIR}/data"
+if mkdir -p /opt/freelancers-app/data 2>/dev/null; then
+  APP_DATA_DIR="/opt/freelancers-app"
+  # Dar ownership ao usuário real (não root) para scripts sem sudo
+  chown -R "${REAL_USER:-root}:${REAL_USER:-root}" /opt/freelancers-app 2>/dev/null || true
+else
+  APP_DATA_DIR="/home/${REAL_USER:-cloud_user}/app"
+  mkdir -p "${APP_DATA_DIR}/data"
+  warn "Sem permissão em /opt — usando ${APP_DATA_DIR}"
+fi
 chmod 755 "${APP_DATA_DIR}"
 success "Diretório de dados criado em ${APP_DATA_DIR}."
 
@@ -179,15 +204,19 @@ fi
 
 # ------------------------------------------------------------------------------
 # 8. Instalar Nginx (proxy reverso opcional)
+# No Playground a aplicação já fica acessível diretamente na porta 3000,
+# portanto o Nginx é instalado mas não bloqueante se systemctl falhar.
 # ------------------------------------------------------------------------------
 if command -v nginx &>/dev/null; then
   success "Nginx já instalado."
 else
   info "Instalando Nginx..."
   apt-get install -y -qq nginx
-  systemctl enable nginx
-  systemctl start nginx
-  success "Nginx instalado e iniciado."
+  # systemctl pode não funcionar em containers/playground — usa service como fallback
+  (systemctl enable nginx 2>/dev/null && systemctl start nginx 2>/dev/null) || \
+  service nginx start 2>/dev/null || \
+  warn "Nginx instalado mas não iniciado (ambiente não suporta serviços em background)."
+  command -v nginx &>/dev/null && success "Nginx instalado."
 fi
 
 # ------------------------------------------------------------------------------
@@ -200,11 +229,14 @@ echo -e "${GREEN}============================================================${N
 echo ""
 echo -e "  Docker:          $(docker --version)"
 echo -e "  Docker Compose:  $(docker compose version 2>/dev/null || docker-compose --version)"
-echo -e "  Nginx:           $(nginx -v 2>&1)"
+echo -e "  Nginx:           $(nginx -v 2>&1 || echo 'não disponível')"
+echo -e "  Diretório app:   ${APP_DATA_DIR}"
 echo ""
 echo -e "  Próximos passos:"
-echo -e "  ${YELLOW}1. Edite as variáveis de ambiente:${NC}"
+echo -e "  ${YELLOW}1. Faça o deploy completo (1 comando):${NC}"
+echo -e "     bash scripts/quickstart.sh"
+echo -e "  ${YELLOW}— OU —${NC}"
+echo -e "  ${YELLOW}2. Edite as variáveis de ambiente e faça deploy manual:${NC}"
 echo -e "     nano ${ENV_FILE}"
-echo -e "  ${YELLOW}2. Faça o deploy da aplicação:${NC}"
-echo -e "     bash scripts/deploy.sh"
+echo -e "     APP_DIR=${APP_DATA_DIR} bash scripts/deploy.sh"
 echo ""

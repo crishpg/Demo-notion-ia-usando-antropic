@@ -28,8 +28,27 @@ step()    { echo -e "\n${BLUE}▶ $*${NC}"; }
 # Parâmetros com valores padrão
 # ------------------------------------------------------------------------------
 BRANCH="${BRANCH:-main}"
-APP_DIR="${APP_DIR:-$(cd "$(dirname "$0")/.." && pwd)}"
-ENV_FILE="${ENV_FILE:-/opt/freelancers-app/.env}"
+
+# Resolve APP_DIR: variável de ambiente > pasta-pai do script > /opt > ~/app
+if [[ -z "${APP_DIR:-}" ]]; then
+  SCRIPT_PARENT="$(cd "$(dirname "$0")/.." && pwd)"
+  if [[ -d "/opt/freelancers-app" ]]; then
+    APP_DIR="/opt/freelancers-app"
+  elif [[ -d "$SCRIPT_PARENT" ]]; then
+    APP_DIR="$SCRIPT_PARENT"
+  else
+    APP_DIR="${HOME}/app"
+  fi
+fi
+
+# Resolve ENV_FILE: variável de ambiente > /opt > APP_DIR
+if [[ -z "${ENV_FILE:-}" ]]; then
+  if [[ -f "/opt/freelancers-app/.env" ]]; then
+    ENV_FILE="/opt/freelancers-app/.env"
+  else
+    ENV_FILE="${APP_DIR}/.env"
+  fi
+fi
 COMPOSE_FILE="${APP_DIR}/docker-compose.yml"
 TIMESTAMP=$(date +%Y%m%d_%H%M%S)
 
